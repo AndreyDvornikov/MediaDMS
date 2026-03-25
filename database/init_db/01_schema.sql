@@ -1,4 +1,4 @@
--- 1. Таблица авторов (Главный родитель)
+-- 1. Таблица авторов
 CREATE TABLE IF NOT EXISTS authors (
     author_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -31,26 +31,21 @@ CREATE TABLE IF NOT EXISTS albums (
 );
 
 -- 4. Таблица песен (Внучка автора / Дочь альбома)
+-- Теперь автор определяется строго через альбом
 CREATE TABLE IF NOT EXISTS songs (
     song_id SERIAL PRIMARY KEY,
     album_id INT NOT NULL,
-    author_id INT NOT NULL, -- Денормализация для ускорения поиска по автору
     name VARCHAR(255) NOT NULL,
     duration INT NOT NULL CHECK (duration > 0),
     link_to_api TEXT,
     CONSTRAINT fk_album_song 
         FOREIGN KEY (album_id) 
         REFERENCES albums(album_id) 
-        ON DELETE CASCADE,
-    CONSTRAINT fk_author_song 
-        FOREIGN KEY (author_id) 
-        REFERENCES authors(author_id) 
         ON DELETE CASCADE
 );
 
--- 5. Индексы для оптимизации поиска (Чтобы Андрюхин Rust летал)
+-- 5. Индексы для оптимизации поиска
 CREATE INDEX IF NOT EXISTS idx_authors_name ON authors(name);
 CREATE INDEX IF NOT EXISTS idx_albums_author ON albums(author_id);
 CREATE INDEX IF NOT EXISTS idx_songs_album ON songs(album_id);
-CREATE INDEX IF NOT EXISTS idx_songs_author ON songs(author_id);
 CREATE INDEX IF NOT EXISTS idx_songs_name ON songs(name);
