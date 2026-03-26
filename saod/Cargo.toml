@@ -1,7 +1,8 @@
-[package]
-name = "project"
+﻿[package]
+name = "saod"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
 

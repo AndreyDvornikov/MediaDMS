@@ -1,4 +1,9 @@
 .env
 .env.*
+/venv/
 **/pgdata
 pgdata/
+/target/
+.vscode/
+*.log
+tmp/

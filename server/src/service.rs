@@ -1,5 +1,11 @@
-use std::cmp::Ordering;
+﻿use std::cmp::Ordering;
 use std::sync::Arc;
+
+use saod::a2_tree::A2Tree;
+use saod::binary_search::{binary_search_by, equal_range_by};
+use saod::digital_sort::{
+    radix_sort_by_selected_field, SortDirection as SaodSortDirection, SortField as SaodSortField,
+};
 
 use crate::error::{ApiError, ErrorCode};
 use crate::models::{
@@ -18,26 +24,38 @@ impl SearchService {
         Self { repo }
     }
 
-    pub fn execute(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+    pub async fn execute(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         validate_request(&request)?;
 
         match request.entity {
-            Entity::Song => self.search_songs(request),
-            Entity::Album => self.search_albums(request),
-            Entity::Author => self.search_author(request),
+            Entity::Song => self.search_songs(request).await,
+            Entity::Album => self.search_albums(request).await,
+            Entity::Author => self.search_author(request).await,
         }
     }
 
-    fn search_songs(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+    async fn search_songs(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         let mut songs = self
             .repo
             .all_songs()
+            .await
             .map_err(ApiError::from_repo_error)?
             .into_iter()
             .filter(|song| apply_song_filters(song, &request.filters))
             .collect::<Vec<_>>();
 
         apply_song_sort(&mut songs, &request.sort)?;
+        apply_song_binary_search_hint(&songs, &request.filters, &request.sort);
+
+        if should_build_a2_tree() {
+            let mut tree = A2Tree::new();
+            let field = request.sort.field.as_ref().unwrap_or(&SortField::Year);
+            let order = request.sort.order.as_ref().unwrap_or(&SortOrder::Asc);
+            for item in songs.iter().cloned() {
+                tree.insert_by(item, |a, b| song_cmp(a, b, field, order));
+            }
+            let _tree_size = tree.len();
+        }
 
         if songs.is_empty() {
             return Err(ApiError::not_found(
@@ -48,16 +66,28 @@ impl SearchService {
         Ok(ok_response(request, ResponseData::Song(songs)))
     }
 
-    fn search_albums(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+    async fn search_albums(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         let mut albums = self
             .repo
             .all_albums()
+            .await
             .map_err(ApiError::from_repo_error)?
             .into_iter()
             .filter(|album| apply_album_filters(album, &request.filters))
             .collect::<Vec<_>>();
 
         apply_album_sort(&mut albums, &request.sort)?;
+        apply_album_binary_search_hint(&albums, &request.filters, &request.sort);
+
+        if should_build_a2_tree() {
+            let mut tree = A2Tree::new();
+            let field = request.sort.field.as_ref().unwrap_or(&SortField::Year);
+            let order = request.sort.order.as_ref().unwrap_or(&SortOrder::Asc);
+            for item in albums.iter().cloned() {
+                tree.insert_by(item, |a, b| album_cmp(a, b, field, order));
+            }
+            let _tree_size = tree.len();
+        }
 
         if albums.is_empty() {
             return Err(ApiError::not_found(
@@ -68,7 +98,7 @@ impl SearchService {
         Ok(ok_response(request, ResponseData::Album(albums)))
     }
 
-    fn search_author(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+    async fn search_author(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         let author = request.filters.author.clone().ok_or_else(|| {
             ApiError::invalid_request("For entity=author, filters.author is required")
         })?;
@@ -76,6 +106,7 @@ impl SearchService {
         let albums = self
             .repo
             .all_albums()
+            .await
             .map_err(ApiError::from_repo_error)?
             .into_iter()
             .filter(|a| a.author.eq_ignore_ascii_case(&author))
@@ -84,6 +115,7 @@ impl SearchService {
         let mut images = self
             .repo
             .author_images(&author)
+            .await
             .map_err(ApiError::from_repo_error)?;
         images.truncate(6);
 
@@ -98,6 +130,67 @@ impl SearchService {
         };
 
         Ok(ok_response(request, ResponseData::Author(payload)))
+    }
+}
+
+fn should_build_a2_tree() -> bool {
+    std::env::var("ENABLE_A2_TREE")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn apply_song_binary_search_hint(songs: &[SongRecord], filters: &Filters, sort: &Sort) {
+    if songs.is_empty() {
+        return;
+    }
+
+    if matches!(sort.field, Some(SortField::Author)) {
+        if let Some(author) = &filters.author {
+            let probe = SongRecord {
+                song_id: 0,
+                author: author.clone(),
+                album_name: String::new(),
+                song_name: String::new(),
+                year: 0,
+                duration_sec: 0,
+            };
+            let cmp = |a: &SongRecord, b: &SongRecord| {
+                a.author
+                    .to_ascii_lowercase()
+                    .cmp(&b.author.to_ascii_lowercase())
+            };
+            if binary_search_by(songs, &probe, cmp).is_some() {
+                let _range = equal_range_by(songs, &probe, cmp);
+            }
+        }
+    }
+}
+
+fn apply_album_binary_search_hint(albums: &[AlbumRecord], filters: &Filters, sort: &Sort) {
+    if albums.is_empty() {
+        return;
+    }
+
+    if matches!(sort.field, Some(SortField::Author)) {
+        if let Some(author) = &filters.author {
+            let probe = AlbumRecord {
+                album_id: 0,
+                author: author.clone(),
+                album_name: String::new(),
+                description: String::new(),
+                cover_url: String::new(),
+                year: 0,
+            };
+            let cmp = |a: &AlbumRecord, b: &AlbumRecord| {
+                a.author
+                    .to_ascii_lowercase()
+                    .cmp(&b.author.to_ascii_lowercase())
+            };
+            if binary_search_by(albums, &probe, cmp).is_some() {
+                let _range = equal_range_by(albums, &probe, cmp);
+            }
+        }
     }
 }
 
@@ -238,6 +331,13 @@ fn apply_album_filters(album: &AlbumRecord, f: &Filters) -> bool {
     true
 }
 
+fn to_saod_direction(order: &SortOrder) -> SaodSortDirection {
+    match order {
+        SortOrder::Asc => SaodSortDirection::Asc,
+        SortOrder::Desc => SaodSortDirection::Desc,
+    }
+}
+
 fn apply_song_sort(songs: &mut [SongRecord], sort: &Sort) -> Result<(), ApiError> {
     let Some(field) = &sort.field else {
         return Ok(());
@@ -246,22 +346,46 @@ fn apply_song_sort(songs: &mut [SongRecord], sort: &Sort) -> Result<(), ApiError
         return Ok(());
     };
 
-    songs.sort_by(|a, b| {
-        let cmp = match field {
-            SortField::Year => a.year.cmp(&b.year),
-            SortField::SongName => a.song_name.to_lowercase().cmp(&b.song_name.to_lowercase()),
-            SortField::AlbumName => a
-                .album_name
-                .to_lowercase()
-                .cmp(&b.album_name.to_lowercase()),
-            SortField::Author => a.author.to_lowercase().cmp(&b.author.to_lowercase()),
-        };
+    let dir = to_saod_direction(order);
 
-        match order {
-            SortOrder::Asc => cmp,
-            SortOrder::Desc => reverse(cmp),
-        }
-    });
+    match field {
+        SortField::Year => radix_sort_by_selected_field(
+            songs,
+            SaodSortField::Year,
+            dir,
+            |x| x.song_id as u64,
+            |x| &x.author,
+            |x| &x.song_name,
+            |x| x.year as u64,
+        ),
+        SortField::SongName => radix_sort_by_selected_field(
+            songs,
+            SaodSortField::Name,
+            dir,
+            |x| x.song_id as u64,
+            |x| &x.author,
+            |x| &x.song_name,
+            |x| x.year as u64,
+        ),
+        SortField::AlbumName => radix_sort_by_selected_field(
+            songs,
+            SaodSortField::Name,
+            dir,
+            |x| x.song_id as u64,
+            |x| &x.author,
+            |x| &x.album_name,
+            |x| x.year as u64,
+        ),
+        SortField::Author => radix_sort_by_selected_field(
+            songs,
+            SaodSortField::Author,
+            dir,
+            |x| x.song_id as u64,
+            |x| &x.author,
+            |x| &x.song_name,
+            |x| x.year as u64,
+        ),
+    }
 
     Ok(())
 }
@@ -274,24 +398,77 @@ fn apply_album_sort(albums: &mut [AlbumRecord], sort: &Sort) -> Result<(), ApiEr
         return Ok(());
     };
 
-    albums.sort_by(|a, b| {
-        let cmp = match field {
-            SortField::Year => a.year.cmp(&b.year),
-            SortField::AlbumName => a
-                .album_name
-                .to_lowercase()
-                .cmp(&b.album_name.to_lowercase()),
-            SortField::Author => a.author.to_lowercase().cmp(&b.author.to_lowercase()),
-            SortField::SongName => Ordering::Equal,
-        };
+    let dir = to_saod_direction(order);
 
-        match order {
-            SortOrder::Asc => cmp,
-            SortOrder::Desc => reverse(cmp),
+    match field {
+        SortField::Year => radix_sort_by_selected_field(
+            albums,
+            SaodSortField::Year,
+            dir,
+            |x| x.album_id as u64,
+            |x| &x.author,
+            |x| &x.album_name,
+            |x| x.year as u64,
+        ),
+        SortField::AlbumName => radix_sort_by_selected_field(
+            albums,
+            SaodSortField::Name,
+            dir,
+            |x| x.album_id as u64,
+            |x| &x.author,
+            |x| &x.album_name,
+            |x| x.year as u64,
+        ),
+        SortField::Author => radix_sort_by_selected_field(
+            albums,
+            SaodSortField::Author,
+            dir,
+            |x| x.album_id as u64,
+            |x| &x.author,
+            |x| &x.album_name,
+            |x| x.year as u64,
+        ),
+        SortField::SongName => {
+            return Err(ApiError::invalid_request(
+                "song_name sorting is not supported for entity=album",
+            ));
         }
-    });
+    }
 
     Ok(())
+}
+
+fn song_cmp(a: &SongRecord, b: &SongRecord, field: &SortField, order: &SortOrder) -> Ordering {
+    let cmp = match field {
+        SortField::Year => a.year.cmp(&b.year),
+        SortField::SongName => a.song_name.cmp(&b.song_name),
+        SortField::AlbumName => a.album_name.cmp(&b.album_name),
+        SortField::Author => a.author.cmp(&b.author),
+    };
+
+    match order {
+        SortOrder::Asc => cmp,
+        SortOrder::Desc => reverse(cmp),
+    }
+}
+
+fn album_cmp(
+    a: &AlbumRecord,
+    b: &AlbumRecord,
+    field: &SortField,
+    order: &SortOrder,
+) -> Ordering {
+    let cmp = match field {
+        SortField::Year => a.year.cmp(&b.year),
+        SortField::AlbumName => a.album_name.cmp(&b.album_name),
+        SortField::Author => a.author.cmp(&b.author),
+        SortField::SongName => Ordering::Equal,
+    };
+
+    match order {
+        SortOrder::Asc => cmp,
+        SortOrder::Desc => reverse(cmp),
+    }
 }
 
 fn reverse(cmp: Ordering) -> Ordering {
@@ -311,8 +488,8 @@ mod tests {
 
     use super::SearchService;
 
-    #[test]
-    fn song_filter_and_sort_desc_year_works() {
+    #[tokio::test]
+    async fn song_filter_and_sort_desc_year_works() {
         let service = SearchService::new(Arc::new(InMemoryRepository::new_seeded()));
         let req = ApiRequest {
             entity: Entity::Song,
@@ -332,7 +509,7 @@ mod tests {
             },
         };
 
-        let out = service.execute(req).expect("must work");
+        let out = service.execute(req).await.expect("must work");
         let data = out.data.expect("must have data");
 
         match data {
@@ -345,8 +522,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn invalid_range_returns_error() {
+    #[tokio::test]
+    async fn invalid_range_returns_error() {
         let service = SearchService::new(Arc::new(InMemoryRepository::new_seeded()));
         let req = ApiRequest {
             entity: Entity::Song,
@@ -360,12 +537,12 @@ mod tests {
             sort: Sort::default(),
         };
 
-        let err = service.execute(req).expect_err("must fail");
+        let err = service.execute(req).await.expect_err("must fail");
         assert_eq!(err.code as u8, 4);
     }
 
-    #[test]
-    fn author_images_are_limited_to_six() {
+    #[tokio::test]
+    async fn author_images_are_limited_to_six() {
         let service = SearchService::new(Arc::new(InMemoryRepository::new_seeded()));
         let req = ApiRequest {
             entity: Entity::Author,
@@ -376,7 +553,7 @@ mod tests {
             sort: Sort::default(),
         };
 
-        let out = service.execute(req).expect("must work");
+        let out = service.execute(req).await.expect("must work");
 
         match out.data.expect("must have data") {
             crate::models::ResponseData::Author(payload) => {
