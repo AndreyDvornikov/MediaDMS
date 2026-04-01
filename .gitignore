@@ -2,3 +2,5 @@
 .env.*
 **/pgdata
 pgdata/
+venv
+.venv
