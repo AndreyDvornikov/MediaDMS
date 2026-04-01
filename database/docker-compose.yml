@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    # Используем официальный легковесный образ на базе Alpine
+    image: postgres:16-alpine
+    container_name: mediadms_postgres
+    restart: always
+    
+    # Подтягиваем переменные из твоего .env файла
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    # Проброс портов: твой кастомный порт из .env -> 5432 внутри
+    ports:
+      - "${DB_PORT}:5432"
+
+    # Настройка томов (Volumes)
+    volumes:
+      # ИСПОЛЬЗУЕМ ИМЕНОВАННЫЙ ТОМ: это решает ошибку chmod/permissions
+      - pg_database_data:/var/lib/postgresql/data
+      
+      # Авто-инициализация: кладем sql скрипт в спец. папку контейнера
+      - ./init_db:/docker-entrypoint-initdb.d
+
+    # Ограничение ресурсов
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+# Объявляем именованный том, который мы использовали выше
+volumes:
+  pg_database_data:
