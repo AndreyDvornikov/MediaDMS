@@ -120,7 +120,6 @@ impl MediaRepository for InMemoryRepository {
     }
 
     fn author_images(&self, author: &str) -> Result<Vec<String>, RepoError> {
-        // Пока БД нет, используем предсказуемые тестовые URL.
         let known = vec![
             "https://img.example/author-1.jpg",
             "https://img.example/author-2.jpg",

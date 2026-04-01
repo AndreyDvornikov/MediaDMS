@@ -1,8 +1,5 @@
 use crate::postgres_repo::SongResponse;
 
-// =========================
-// 🔥 BINARY SEARCH
-// =========================
 pub fn binary_search(arr: &Vec<SongResponse>, target: i32) -> Option<usize> {
     let mut left = 0;
     let mut right = arr.len();
@@ -22,9 +19,6 @@ pub fn binary_search(arr: &Vec<SongResponse>, target: i32) -> Option<usize> {
     None
 }
 
-// =========================
-// 🔥 RADIX SORT (digital)
-// =========================
 pub fn radix_sort(arr: &mut Vec<SongResponse>) {
 
     if arr.is_empty() {
@@ -65,9 +59,6 @@ fn counting_sort(arr: &mut Vec<SongResponse>, exp: i32) {
     }
 }
 
-// =========================
-// 🔥 A2 TREE (упрощённое)
-// =========================
 pub struct A2Tree {
     data: Vec<(String, SongResponse)>
 }

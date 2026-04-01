@@ -81,7 +81,6 @@ impl<T> A2Tree<T> {
         walk(&self.root, out);
     }
 
-    // A2: builds a near-optimal search tree from sorted keys using key weights.
     pub fn build_from_sorted_by_weight<F>(items: &[T], weight: F) -> Self
     where
         T: Clone,
