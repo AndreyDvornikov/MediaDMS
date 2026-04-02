@@ -1,0 +1,4 @@
+requests>=2.31
+psycopg2-binary>=2.9
+PyQt6>=6.6
+pygame>=2.5
