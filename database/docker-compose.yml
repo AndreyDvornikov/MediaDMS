@@ -13,24 +13,21 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
 
-    # Проброс портов: твой кастомный порт из .env -> 5432 внутри
+    # Проброс портов: твой кастомный 5531 -> стандартный 5432 внутри контейнера
     ports:
       - "${DB_PORT}:5432"
 
     # Настройка томов (Volumes)
     volumes:
-      # ИСПОЛЬЗУЕМ ИМЕНОВАННЫЙ ТОМ: это решает ошибку chmod/permissions
-      - pg_database_data:/var/lib/postgresql/data
+      # 1. Сохранение данных между перезапусками (как ты и просил)
+      - ./pgdata:/var/lib/postgresql/data
       
-      # Авто-инициализация: кладем sql скрипт в спец. папку контейнера
+      # 2. Авто-инициализация: кладем sql скрипт в спец. папку контейнера
+      # Все, что лежит в ./init_db/, выполнится при первом старте
       - ./init_db:/docker-entrypoint-initdb.d
 
-    # Ограничение ресурсов
+    # Ограничение ресурсов (хороший тон для промышленных доков)
     deploy:
       resources:
         limits:
           memory: 1024M
-
-# Объявляем именованный том, который мы использовали выше
-volumes:
-  pg_database_data:

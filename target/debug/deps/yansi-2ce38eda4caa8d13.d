@@ -1,0 +1,14 @@
+/home/avadik/Programming/mdms/MediaDMS/target/debug/deps/yansi-2ce38eda4caa8d13.d: /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/lib.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/macros.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/windows.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/attr_quirk.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/style.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/color.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/paint.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/global.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/condition.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/set.rs
+
+/home/avadik/Programming/mdms/MediaDMS/target/debug/deps/libyansi-2ce38eda4caa8d13.rmeta: /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/lib.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/macros.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/windows.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/attr_quirk.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/style.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/color.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/paint.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/global.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/condition.rs /home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/set.rs
+
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/lib.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/macros.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/windows.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/attr_quirk.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/style.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/color.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/paint.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/global.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/condition.rs:
+/home/avadik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/yansi-1.0.1/src/set.rs:

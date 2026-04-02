@@ -3,6 +3,7 @@ import requests
 import tempfile
 import pygame
 import os
+import base64
 
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
@@ -12,7 +13,8 @@ SERVER_URL = "http://127.0.0.1:8080/api/v1/query"
 
 pygame.mixer.init()
 
-PLACEHOLDER_PATH = "covers/placeholder.png"
+BASE_DIR = os.path.dirname(__file__)
+PLACEHOLDER_PATH = os.path.join(BASE_DIR, "covers", "placeholder.png")
 
 
 def parse_range(text):
@@ -151,6 +153,16 @@ class App(QWidget):
     # -------- IMAGE --------
 
     def get_pixmap(self, track):
+        cover_binary = track.get("cover_binary")
+        if cover_binary:
+            try:
+                pixmap = QPixmap()
+                pixmap.loadFromData(base64.b64decode(cover_binary))
+                if not pixmap.isNull():
+                    return pixmap
+            except:
+                pass
+
         url = track.get("url")
 
         if url:
