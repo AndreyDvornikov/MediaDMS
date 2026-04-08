@@ -201,6 +201,78 @@ python3 app.py
 
 ---
 
+### 6.4 Запуск на Raspberry Pi 3
+
+Клиент использует PyQt5 вместо PyQt6 (файл `client_rpi.py`), так как PyQt6 недоступен на Raspberry Pi OS.
+
+#### Установка зависимостей
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3-pyqt5 libsdl2-mixer-2.0-0 libsdl2-2.0-0
+pip3 install pygame requests --break-system-packages
+```
+
+#### Установка Rust (для backend)
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+```
+
+#### Установка Docker (для базы данных)
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+```
+
+После этого перелогиниться или выполнить:
+
+```bash
+newgrp docker
+```
+
+#### Запуск
+
+```bash
+# База данных
+docker-compose -f database/docker-compose.yml up -d
+
+# Backend
+cargo run
+
+# Клиент (в отдельном терминале)
+cd client
+python3 client_rpi.py
+```
+
+#### Если запуск через SSH (с монитором)
+
+```bash
+export DISPLAY=:0
+python3 client_rpi.py
+```
+
+#### Если нет монитора (headless)
+
+```bash
+sudo apt install -y xvfb
+Xvfb :1 -screen 0 1024x768x16 &
+DISPLAY=:1 python3 client_rpi.py
+```
+
+#### Возможные проблемы
+
+| Ошибка | Решение |
+|---|---|
+| `No module named PyQt5` | `sudo apt install python3-pyqt5` |
+| `cannot connect to X server` | `export DISPLAY=:0` перед запуском |
+| `pygame.error: No available audio device` | `sudo apt install pulseaudio` или запустить с `SDL_AUDIODRIVER=dummy python3 client_rpi.py` |
+| Медленная компиляция backend | Нормально для RPi 3, первая сборка занимает 20–40 минут |
+
+---
+
 ## 7. API
 
 ### 7.1 Health
@@ -363,8 +435,11 @@ cargo run
 cargo check
 cargo test -p server
 
-# Client
+# Client (обычный)
 python3 app.py
+
+# Client (Raspberry Pi)
+python3 client_rpi.py
 ```
 
 ---
