@@ -2,6 +2,7 @@ import base64
 import os
 import sys
 import tempfile
+import time
 
 import pygame
 import requests
@@ -33,6 +34,9 @@ from PyQt6.QtWidgets import (
 
 SERVER_URL = "http://127.0.0.1:8080/api/v1/query"
 REQUEST_TIMEOUT = 10
+DOWNLOAD_CONNECT_TIMEOUT = 5
+DOWNLOAD_READ_TIMEOUT = 60
+DOWNLOAD_RETRIES = 3
 
 pygame.mixer.init()
 
@@ -1154,13 +1158,48 @@ class App(QWidget):
 
         try:
             self.stop_playback(clear_status=False)
-            response = requests.get(audio_url, timeout=REQUEST_TIMEOUT)
-            response.raise_for_status()
-
             suffix = os.path.splitext(audio_url)[1] or ".mp3"
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-            temp_file.write(response.content)
-            temp_file.close()
+            temp_file = None
+            last_error = None
+
+            for attempt in range(1, DOWNLOAD_RETRIES + 1):
+                try:
+                    response = requests.get(
+                        audio_url,
+                        timeout=(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_TIMEOUT),
+                        stream=True,
+                    )
+                    response.raise_for_status()
+
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    for chunk in response.iter_content(chunk_size=64 * 1024):
+                        if chunk:
+                            temp_file.write(chunk)
+                    temp_file.close()
+                    break
+                except requests.Timeout as err:
+                    last_error = err
+                    if temp_file is not None:
+                        temp_file.close()
+                        if os.path.exists(temp_file.name):
+                            os.unlink(temp_file.name)
+                    if attempt < DOWNLOAD_RETRIES:
+                        time.sleep(1)
+                        continue
+                    raise TimeoutError(
+                        "The audio server is responding too slowly. "
+                        "Please try again in a few seconds."
+                    ) from err
+                except requests.RequestException as err:
+                    last_error = err
+                    if temp_file is not None:
+                        temp_file.close()
+                        if os.path.exists(temp_file.name):
+                            os.unlink(temp_file.name)
+                    raise
+
+            if temp_file is None:
+                raise RuntimeError(f"Unable to download audio: {last_error}")
 
             self.temp_audio_file = temp_file.name
             pygame.mixer.music.load(self.temp_audio_file)
