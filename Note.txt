@@ -1,0 +1,113 @@
+MediaDMS: запуск в эмулированной ARM64-среде уровня Raspberry Pi 3B
+
+Дата проверки: 2026-04-09
+
+Что было проверено
+- Собран ARM64 Docker-образ backend через QEMU/Docker Buildx.
+- Запущен ARM64-контейнер backend.
+- Проверен endpoint `GET /health`.
+- Проверен рабочий запрос `POST /api/v1/query`.
+
+Фактический результат проверки
+- Образ: `mediadms_backend:arm64`
+- Архитектура образа: `arm64/linux`
+- Лог старта backend:
+  `Server started at http://127.0.0.1:8080`
+- Ответ `GET /health`:
+  `{"status":"ok"}`
+
+Важно
+- В этом проекте backend не поднимается с PostgreSQL без `sslmode=disable` в `DATABASE_URL`.
+- Старый локальный контейнер `mediadms_backend` падал именно из-за этого.
+- Для ARM-проверки использовался рабочий URL:
+  `postgres://admin:access@127.0.0.1:5531/media_dms_db?sslmode=disable`
+
+1. Поднять PostgreSQL
+
+Из корня проекта:
+
+```bash
+POSTGRES_USER=admin \
+POSTGRES_PASSWORD=access \
+POSTGRES_DB=media_dms_db \
+DB_PORT=5531 \
+docker compose -f database/docker-compose.yml up -d
+```
+
+Проверка:
+
+```bash
+docker ps --filter name=mediadms_postgres
+```
+
+2. Собрать ARM64-образ backend
+
+Из корня проекта:
+
+```bash
+docker buildx build --platform linux/arm64 --network host -t mediadms_backend:arm64 --load .
+```
+
+Примечание:
+- `--network host` здесь нужен, потому что в этой машине обычный Docker bridge был сломан и без этого сборка падала на `apt-get`.
+
+3. Запустить backend в ARM64-эмуляции
+
+Если старый контейнер мешает:
+
+```bash
+docker stop mediadms_backend
+```
+
+Запуск проверенного ARM64-варианта:
+
+```bash
+docker run -d --rm \
+  --name mediadms_backend_arm64 \
+  --platform linux/arm64 \
+  --network host \
+  -e DATABASE_URL='postgres://admin:access@127.0.0.1:5531/media_dms_db?sslmode=disable' \
+  -e RUST_LOG=info \
+  mediadms_backend:arm64
+```
+
+4. Проверить, что backend реально работает
+
+Лог старта:
+
+```bash
+docker logs --tail 50 mediadms_backend_arm64
+```
+
+Healthcheck:
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+Ожидаемый ответ:
+
+```json
+{"status":"ok"}
+```
+
+Тест API:
+
+```bash
+curl -H 'Content-Type: application/json' \
+  -d '{"method":"read","entity":"author","filters":{},"sort":{}}' \
+  http://127.0.0.1:8080/api/v1/query
+```
+
+Если база уже заполнена, backend вернет JSON со списком авторов.
+
+5. Остановка
+
+```bash
+docker stop mediadms_backend_arm64
+docker stop mediadms_postgres
+```
+
+Что именно было использовано для эмуляции
+- Не full-system QEMU с виртуальной платой и загрузкой образа Raspberry Pi OS.
+- Использовалась ARM64-эмуляция через Docker Buildx/QEMU userspace, что достаточно для проверки backend на ARM-платформе, совместимой с Raspberry Pi 3B в 64-bit режиме.

@@ -1,6 +1,8 @@
 .env
 .env.*
+**/.env
 **/pgdata
 pgdata/
 venv
 .venv
+rpi-rootfs
